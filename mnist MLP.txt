@@ -1,0 +1,63 @@
+class network(object):
+    def __init__(self,size):
+        self.size = size
+        self.theta = [np.random.rand(i,j)/j for i,j in zip(self.size[1:],self.size[:-1])]
+        self.bias = [np.random.rand(i,1) for i in self.size[1:]]
+        
+    def feedforward(self,x):
+        #z = [np.zeros(i) for i in self.size]
+        #a = [np.zeros(i) for i in self.size]
+        a = [0]*len(self.size)
+        a[0] = x.T
+        for i in range(len(self.size)-1):
+            z = np.dot(self.theta[i], a[i]) + self.bias[i]
+            a[i+1] = self.sigmoid(z)
+        return a
+    
+    def sigmoid(self,x):
+        return 1/(1+np.exp(-x))
+        
+    def sigmoid_prime(self,x):
+        return x*(1-x)
+    
+    def onehot(self,y):
+        matrix = np.zeros((len(y),10))
+        for i in range(len(y)):
+            matrix[i][y[i]] = 1
+        return matrix.T
+    
+    def update(self,x,y,learning_rate):
+        n_size = len(self.size)
+        a = self.feedforward(x)
+        #delta = [np.zeros(i) for i in self.size[1:]]
+        delta = [0]*(n_size-1)
+        
+        delta[-1] = a[-1] - self.onehot(y)
+        for i in range(1,n_size-1):
+            delta[-i-1] = np.dot(self.theta[-i].T,delta[-i])*self.sigmoid_prime(a[-i-1])
+            
+        delta_theta = [np.dot(delta[i],a[i].T)*learning_rate/len(y) for i in range(n_size-1)]
+        delta_bias = [np.mean(delta[i],axis=1).reshape(self.bias[i].shape)*learning_rate/len(y) for i in range(n_size-1)]
+            
+        self.theta = [self.theta[i] - delta_theta[i] for i in range(n_size-1)]
+        self.bias = [self.bias[i] - delta_bias[i] for i in range(n_size-1)]
+    
+    def predict(self,x):
+        a = self.feedforward(x)
+        return np.argmax(a[-1].T,axis=1)
+    
+    def sgd(self,x,y,learning_rate,minibatch_size,epochs,test_x=None,test_y=None):
+        n_batch = len(y)/minibatch_size
+        
+        for epoch in range(epochs+1):
+            index = np.random.permutation(range(len(y)))
+            x_ = x[index]
+            y_ = y[index]
+            for i in range(n_batch):
+                x_mini = x_[i*minibatch_size:(i+1)*minibatch_size]
+                y_mini = y_[i*minibatch_size:(i+1)*minibatch_size]
+                self.update(x_mini,y_mini,learning_rate)
+            if epoch % 1000 == 0:
+                ratio_test = (sum(self.predict(x) == y).astype(float))/len(y)
+                print ratio_test
+            
